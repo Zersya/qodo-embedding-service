@@ -2,32 +2,43 @@ version: '3.8'
 
 services:
   qodo-embed-api:
-    build: . # Build the image from the Dockerfile in the current directory
+    build: .
     container_name: qodo_embed_api
     ports:
-      - "8000:8000" # Map host port 8000 to container port 8000
-    # volumes: # Uncomment for development to reflect code changes without rebuilding
-    #   - ./main.py:/app/main.py
+      - "8000:8000"
     restart: unless-stopped
-    # healthcheck: # Optional basic healthcheck
+    environment:
+      # Define where Hugging Face libraries should store cache and models inside the container.
+      # This path will be backed by the named volume.
+      - HF_HOME=/cache/huggingface
+      # You can also set other relevant env vars here if needed:
+      # - MODEL_NAME=Qodo/Qodo-Embed-1-1.5B # Already in main.py with getenv
+      # - DEVICE=cpu # Already in main.py with getenv
+      # - TRANSFORMERS_CACHE=/cache/huggingface/hub # More specific, HF_HOME is usually sufficient
+    volumes:
+      # Mount the named volume 'huggingface_cache_vol' to '/cache/huggingface' in the container.
+      - huggingface_cache_vol:/cache/huggingface
+    # --- Healthcheck (optional, as before) ---
+    # healthcheck:
     #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
     #   interval: 30s
     #   timeout: 10s
     #   retries: 3
-    #   start_period: 30s # Give time for model to load
-
-    # --- GPU Support (Uncomment and configure if you have an NVIDIA GPU and want to use it) ---
+    #   start_period: 60s # Increased start_period to allow for first model download if cache is cold
+    # --- GPU Support (as before, if needed) ---
     # deploy:
     #   resources:
     #     reservations:
     #       devices:
     #         - driver: nvidia
-    #           count: 1 # or 'all'
+    #           count: 1
     #           capabilities: [gpu]
-    # Make sure your Dockerfile and PyTorch installation are set up for GPU (e.g., nvidia/cuda base image, torch with CUDA).
-    # You'll also need nvidia-docker2 and the NVIDIA Container Toolkit installed on your host.
-    # --- End GPU Support ---
 
-networks:
+networks: # Optional: define a custom network
   default:
     name: qodo_network
+
+# Define the named volume that will persist the data
+volumes:
+  huggingface_cache_vol:
+    driver: local # This is the default driver, can be omitted.
